@@ -1,0 +1,6 @@
+# Redirect all proxy requests to the Netlify function
+/secureproxy.php /netlify/functions/secureproxy.js 200
+/secureproxy /netlify/functions/secureproxy.js 200
+
+# Handle SPA routing (if needed)
+/* /index.html 200

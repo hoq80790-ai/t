@@ -1,0 +1,19 @@
+{
+  "name": "netlify-proxy-app",
+  "version": "1.0.0",
+  "description": "Приложение с прокси для Netlify",
+  "main": "index.html",
+  "scripts": {
+    "build": "echo 'Build completed'",
+    "dev": "netlify dev"
+  },
+  "dependencies": {
+    "node-fetch": "^2.6.7"
+  },
+  "devDependencies": {
+    "netlify-cli": "^17.0.0"
+  },
+  "engines": {
+    "node": "18.x"
+  }
+}
