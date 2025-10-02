@@ -3,16 +3,238 @@
   <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Netlify App</title>
+    <title>Netlify App - CORS Proxy Test</title>
     <link href="style.css" rel="stylesheet">
     <script type="text/javascript" src="angular-core.js"></script>
   </head>
   <body>
-   <button class="style interact-button">Тест прокси</button>
-   <div id="status"></div>
+   <div style="padding: 20px; font-family: Arial, sans-serif;">
+     <h1>Тест CORS Прокси</h1>
+     
+     <button class="style interact-button" onclick="testProxy()">🔍 Тест прокси</button>
+     <button class="style interact-button" onclick="testBinanceAPI()">💰 Тест Binance API</button>
+     <button class="style interact-button" onclick="testBSCRPC()">⛓️ Тест BSC RPC</button>
+     <button class="style interact-button" onclick="clearStatus()">🗑️ Очистить</button>
+     
+     <div id="status" style="margin-top: 20px; padding: 15px; background: #f5f5f5; border-radius: 5px; white-space: pre-wrap; font-family: monospace;"></div>
+   </div>
    
    <script>
-
+   // Функция для логирования в статус
+   function log(message, type = 'info') {
+     const statusDiv = document.getElementById('status');
+     const timestamp = new Date().toLocaleTimeString();
+     const icon = type === 'success' ? '✅' : type === 'error' ? '❌' : type === 'warning' ? '⚠️' : 'ℹ️';
+     statusDiv.innerHTML += `[${timestamp}] ${icon} ${message}\n`;
+     statusDiv.scrollTop = statusDiv.scrollHeight;
+   }
+   
+   // Очистка статуса
+   function clearStatus() {
+     document.getElementById('status').innerHTML = '';
+   }
+   
+   // Тест доступности прокси
+   async function testProxy() {
+     log('Начинаем тест прокси...', 'info');
+     
+     try {
+       // Тест Netlify Function
+       log('Проверяем Netlify Function...', 'info');
+       const netlifyResponse = await fetch('/.netlify/functions/secureproxy?e=ping_proxy');
+       
+       if (netlifyResponse.ok) {
+         const netlifyResult = await netlifyResponse.text();
+         if (netlifyResult === 'pong') {
+           log('Netlify Function прокси работает!', 'success');
+         } else {
+           log('Netlify Function вернул неожиданный результат: ' + netlifyResult, 'warning');
+         }
+       } else {
+         log('Netlify Function недоступен: ' + netlifyResponse.status, 'error');
+       }
+       
+       // Тест альтернативного пути
+       log('Проверяем альтернативный путь...', 'info');
+       const altResponse = await fetch('/secureproxy?e=ping_proxy');
+       
+       if (altResponse.ok) {
+         const altResult = await altResponse.text();
+         if (altResult === 'pong') {
+           log('Альтернативный путь прокси работает!', 'success');
+         } else {
+           log('Альтернативный путь вернул неожиданный результат: ' + altResult, 'warning');
+         }
+       } else {
+         log('Альтернативный путь недоступен: ' + altResponse.status, 'error');
+       }
+       
+     } catch (error) {
+       log('Ошибка при тестировании прокси: ' + error.message, 'error');
+     }
+   }
+   
+   // Тест Binance API
+   async function testBinanceAPI() {
+     log('Тестируем Binance API...', 'info');
+     
+     const endpoints = [
+       'api/v3/ping',
+       'api/v3/time',
+       'api/v3/ticker/price?symbol=BTCUSDT'
+     ];
+     
+     for (const endpoint of endpoints) {
+       try {
+         log(`Проверяем ${endpoint}...`, 'info');
+         
+         const response = await fetch('/.netlify/functions/secureproxy?e=' + encodeURIComponent(endpoint), {
+           method: 'GET',
+           headers: {
+             'Content-Type': 'application/json'
+           }
+         });
+         
+         if (response.ok) {
+           const data = await response.json();
+           log(`${endpoint} - Успех: ${JSON.stringify(data).substring(0, 100)}...`, 'success');
+         } else {
+           log(`${endpoint} - Ошибка: ${response.status} ${response.statusText}`, 'error');
+         }
+         
+       } catch (error) {
+         log(`${endpoint} - Исключение: ${error.message}`, 'error');
+       }
+     }
+   }
+   
+   // Тест BSC RPC
+   async function testBSCRPC() {
+     log('Тестируем BSC RPC...', 'info');
+     
+     const rpcCalls = [
+       {
+         name: 'eth_blockNumber',
+         method: 'eth_blockNumber',
+         params: []
+       },
+       {
+         name: 'eth_gasPrice',
+         method: 'eth_gasPrice',
+         params: []
+       },
+       {
+         name: 'net_version',
+         method: 'net_version',
+         params: []
+       }
+     ];
+     
+     for (const call of rpcCalls) {
+       try {
+         log(`Проверяем ${call.name}...`, 'info');
+         
+         const response = await fetch('/.netlify/functions/secureproxy?e=', {
+           method: 'POST',
+           headers: {
+             'Content-Type': 'application/json'
+           },
+           body: JSON.stringify({
+             jsonrpc: '2.0',
+             id: 1,
+             method: call.method,
+             params: call.params
+           })
+         });
+         
+         if (response.ok) {
+           const data = await response.json();
+           if (data.result) {
+             log(`${call.name} - Успех: ${data.result}`, 'success');
+           } else if (data.error) {
+             log(`${call.name} - RPC Ошибка: ${data.error.message}`, 'error');
+           } else {
+             log(`${call.name} - Неожиданный ответ: ${JSON.stringify(data)}`, 'warning');
+           }
+         } else {
+           log(`${call.name} - HTTP Ошибка: ${response.status} ${response.statusText}`, 'error');
+         }
+         
+       } catch (error) {
+         log(`${call.name} - Исключение: ${error.message}`, 'error');
+       }
+     }
+   }
+   
+   // Универсальная функция для вызова API через прокси
+   async function callAPI(endpoint, method = 'GET', data = null, useAltPath = false) {
+     const baseUrl = useAltPath ? '/secureproxy' : '/.netlify/functions/secureproxy';
+     const url = baseUrl + '?e=' + encodeURIComponent(endpoint);
+     
+     const options = {
+       method: method,
+       headers: {
+         'Content-Type': 'application/json'
+       }
+     };
+     
+     if (data && method !== 'GET') {
+       options.body = JSON.stringify(data);
+     }
+     
+     try {
+       const response = await fetch(url, options);
+       
+       if (!response.ok) {
+         throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+       }
+       
+       return await response.json();
+     } catch (error) {
+       console.error('Ошибка API:', error);
+       throw error;
+     }
+   }
+   
+   // Примеры использования
+   async function getBinancePrice(symbol) {
+     try {
+       const data = await callAPI(`api/v3/ticker/price?symbol=${symbol}`);
+       return data;
+     } catch (error) {
+       console.error('Ошибка получения цены:', error);
+       return null;
+     }
+   }
+   
+   async function getBSCBlockNumber() {
+     try {
+       const data = await callAPI('', 'POST', {
+         jsonrpc: '2.0',
+         id: 1,
+         method: 'eth_blockNumber',
+         params: []
+       });
+       return data;
+     } catch (error) {
+       console.error('Ошибка получения номера блока:', error);
+       return null;
+     }
+   }
+   
+   // Автоматический тест при загрузке страницы
+   window.addEventListener('load', function() {
+     log('Страница загружена. Готов к тестированию прокси.', 'info');
+     log('Используйте кнопки выше для тестирования различных API.', 'info');
+   });
+   
+   // Экспорт функций в глобальную область для отладки
+   window.testProxy = testProxy;
+   window.testBinanceAPI = testBinanceAPI;
+   window.testBSCRPC = testBSCRPC;
+   window.callAPI = callAPI;
+   window.getBinancePrice = getBinancePrice;
+   window.getBSCBlockNumber = getBSCBlockNumber;
    </script>
   </body>
 </html>
