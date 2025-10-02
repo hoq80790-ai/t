@@ -1,0 +1,13 @@
+.style {
+  background-color: black;
+  padding: 10px;
+  color: white;
+  border: 0px solid black;
+}
+
+body {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+
+}
